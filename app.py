@@ -23,8 +23,14 @@ df = pd.read_csv(df_url)
 df_vore = df['vore'].dropna().sort_values().unique()
 opt_vore = [{'label': x + 'vore', 'value': x} for x in df_vore]
 
+colors = {
+     'background': '#7FDBFF',
+     'text': '#745D34F',
+     'special': 'purple'
+ }
+
 app.layout = html.Div([
-    html.H1(app.title),
+    html.H1(app.title, style={'color': colors['special']}),
     dcc.Markdown(markdown_text),
     html.Label(["Select types of feeding strategies:", 
         dcc.Dropdown('my-dropdown', options= opt_vore, value= [opt_vore[0]['value']], multi=True)
@@ -34,7 +40,8 @@ app.layout = html.Div([
         columns=[{"name": i, "id": i} for i in df.columns],
         data= df.to_dict("records")
         )
-])
+],
+style={"backgroundColor": colors['background'], 'color': colors['text']})
 
 @app.callback(
      Output('my-table', 'data'),
