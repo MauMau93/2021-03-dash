@@ -27,7 +27,7 @@ app.layout = html.Div([
     html.H1(app.title),
     dcc.Markdown(markdown_text),
     html.Label(["Select types of feeding strategies:", 
-        dcc.Dropdown('my-dropdown', options= opt_vore, value= opt_vore[0]['value'])
+        dcc.Dropdown('my-dropdown', options= opt_vore, value= [opt_vore[0]['value']], multi=True)
     ]),
     dash_table.DataTable(
         id='my-table',
@@ -39,8 +39,8 @@ app.layout = html.Div([
 @app.callback(
      Output('my-table', 'data'),
      Input('my-dropdown', 'value'))
-def update_data(value):
-    filter = df['vore'] == value
+def update_data(values):
+    filter = df['vore'].isin(values)
     return df[filter].to_dict("records")
 
 
