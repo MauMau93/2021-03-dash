@@ -16,6 +16,11 @@ df = pd.read_csv(df_url).dropna(subset = ['vore'])
 
 df_vore = df['vore'].sort_values().unique()
 opt_vore = [{'label': x + 'vore', 'value': x} for x in df_vore]
+# Discrete Colors in Python
+# https://plotly.com/python/discrete-color/
+col_vore = {}
+for i, x in enumerate(df_vore):
+    col_vore[x]= px.colors.qualitative.G10[i]
 
 markdown_text = '''
 ### Some references
@@ -76,7 +81,10 @@ def update_graph(values, tab):
     if tab != 'tab-g':
         return None
     filter = df['vore'].isin(values)
-    return px.scatter(df[filter], x="bodywt", y="sleep_total", color="vore")
+    print(col_vore)
+    return px.scatter(df[filter], x="bodywt", y="sleep_total", color="vore",
+    #color_discrete_sequence=px.colors.qualitative.G10
+    color_discrete_map=col_vore)
 
 if __name__ == '__main__':
     app.server.run(debug=True)
