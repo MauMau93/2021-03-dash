@@ -61,6 +61,7 @@ app.layout= html.Div([
                      value= [0,1],
                  )
         ]),
+        html.Div(id='data', style={'display': 'none'}),
         dcc.Tabs(id="tabs", value='tab-t', children=[
             dcc.Tab(label='Table', value='tab-t'),
             dcc.Tab(label='Graph', value='tab-g'),
@@ -81,25 +82,35 @@ def render_content(tab):
 
 @app.callback(
      Output('my-table', 'data'),
-     Input('range', 'value'), 
-     State('my-dropdown', 'value'), State('tabs', 'value'))
-def update_table(range, values, tab):
+     Input('data', 'children'), 
+     State('tabs', 'value'))
+def update_table(data, tab):
     if tab != 'tab-t':
         return None
-    filter = df['vore'].isin(values) & df['bodywt'].between(min_bodywt * (max_bodywt/min_bodywt) ** range[0], min_bodywt * (max_bodywt/min_bodywt) ** range[1])
-    return df[filter].to_dict("records")
+    dff = pd.read_json(data, orient='split')
+    return dff.to_dict("records")
 
 @app.callback(
      Output('my-graph', 'figure'),
-     Input('range', 'value'), 
-     State('my-dropdown', 'value'), State('tabs', 'value'))
-def update_graph(range, values, tab):
+     Input('data', 'children'), 
+     State('tabs', 'value'))
+def update_graph(data, tab):
     if tab != 'tab-g':
         return None
-    filter = df['vore'].isin(values) & df['bodywt'].between(min_bodywt * (max_bodywt/min_bodywt) ** range[0], min_bodywt * (max_bodywt/min_bodywt) ** range[1])
-    return px.scatter(df[filter], x="bodywt", y="sleep_total", color="vore",
+    dff = pd.read_json(data, orient='split')
+    return px.scatter(dff, x="bodywt", y="sleep_total", color="vore",
     #color_discrete_sequence=px.colors.qualitative.G10
     color_discrete_map=col_vore)
+
+@app.callback(Output('data', 'children'), 
+    Input('range', 'value'), 
+    State('my-dropdown', 'value'))
+def filter(range, values):
+     filter = df['vore'].isin(values) & df['bodywt'].between(min_bodywt * (max_bodywt/min_bodywt) ** range[0], min_bodywt * (max_bodywt/min_bodywt) ** range[1])
+
+     # more generally, this line would be
+     # json.dumps(cleaned_df)
+     return df[filter].to_json(date_format='iso', orient='split')
 
 if __name__ == '__main__':
     app.server.run(debug=True)
