@@ -18,9 +18,10 @@ df_vore = df['vore'].sort_values().unique()
 opt_vore = [{'label': x + 'vore', 'value': x} for x in df_vore]
 # Discrete Colors in Python
 # https://plotly.com/python/discrete-color/
-col_vore = {}
-for i, x in enumerate(df_vore):
-    col_vore[x]= px.colors.qualitative.G10[i]
+col_vore = {x: px.colors.qualitative.G10[i] for i,x in enumerate(df_vore)}
+
+min_bodywt = min(df['bodywt'].dropna())
+max_bodywt = max(df['bodywt'].dropna())
 
 markdown_text = '''
 ### Some references
@@ -45,6 +46,15 @@ app.layout= html.Div([
         dcc.Markdown(markdown_text),
         html.Label(["Select types of feeding strategies:", 
             dcc.Dropdown('my-dropdown', options= opt_vore, value= [opt_vore[0]['value']], multi=True)
+        ]),
+        html.Label(["Range of values for body weight:", 
+                 dcc.RangeSlider(
+                     max= max_bodywt,
+                     min= min_bodywt,
+                     step= (max_bodywt - min_bodywt)/10,
+                     marks= {'{}'.format(min_bodywt + (max_bodywt - min_bodywt)/10 * i): '{}'.format(round(min_bodywt + (max_bodywt - min_bodywt)/10 * i,2)) for i in range(10)},
+                     value= [min_bodywt,max_bodywt],
+                 )
         ]),
         dcc.Tabs(id="tabs", value='tab-t', children=[
             dcc.Tab(label='Table', value='tab-t'),
