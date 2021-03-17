@@ -1,128 +1,143 @@
 import dash
+
 from dash.dependencies import Input, Output, State
 
+
 import dash_html_components as html
+
 import dash_core_components as dcc
-import plotly.express as px
-import dash_bootstrap_components as dbc
-import dash_table
 
-app = dash.Dash(__name__, title="2021 Dash Python App")
+import dash_table as dt
 
-import numpy as np
 import pandas as pd
-import json
 
-df_url = 'https://forge.scilab.org/index.php/p/rdataset/source/file/master/csv/ggplot2/msleep.csv'
-df = pd.read_csv(df_url).dropna(subset = ['vore'])
+import plotly.express as px
+
+df_url = 'http://forge.scilab.org/index.php/p/rdataset/source/file/master/csv/ggplot2/msleep.csv'
+df = pd.read_csv(df_url).dropna(subset=['vore'])
+
+
+
+df_cols = [{"name": i, "id": i} for i in df.columns]
 
 df_vore = df['vore'].sort_values().unique()
-opt_vore = [{'label': x + 'vore', 'value': x} for x in df_vore]
-# Discrete Colors in Python
-# https://plotly.com/python/discrete-color/
-col_vore = {x: px.colors.qualitative.G10[i] for i,x in enumerate(df_vore)}
 
-min_bodywt = min(df['bodywt'].dropna())
-max_bodywt = max(df['bodywt'].dropna())
+opt_vore = [{'label': x + 'vore', 'value': x} for x in df_vore]
+
+col_vore = {x:px.colors.qualitative.Pastel[i] for i, x in enumerate(df_vore)}
+
+min_bodywt = min(df["bodywt"].dropna())
+max_bodywt = max(df["bodywt"].dropna())
+step_bodywt = (max_bodywt - min_bodywt)/10
+
+print(col_vore)
+
+
+
+app = dash.Dash(__name__, title="Dash App")
+
+
+
+
 
 markdown_text = '''
-### Some references
-- [Dash HTML Components](https://dash.plotly.com/dash-html-components)
-- [Dash Core Components](https://dash.plotly.com/dash-core-components)  
-- [Dash Bootstrap Components](https://dash-bootstrap-components.opensource.faculty.ai/docs/components/) 
-- [Dash DataTable](https://dash.plotly.com/datatable)  
+## Some references
+- [Dash HTML Components](dash.plotly.com/dash-html-components)
+- [Dash Core Components](dash.plotly.com/dash-core-components)  
+- [Dash Bootstrap Components](dash-bootstrap-components.opensource.faculty.ai/docs/components)  
 '''
 
-def slider_map(min, max, steps=10):
-    scale = np.logspace(np.log10(min), np.log10(max), steps, endpoint=False)
-    return {i/10: '{}'.format(round(scale[i],2)) for i in range(steps)}
-
-table_tab = dash_table.DataTable(
-                id='my-table',
-                columns=[{"name": i, "id": i} for i in df.columns]
+table_tab = dt.DataTable(id="my-table",
+                columns = df_cols,
+                data= df.to_dict("records")
             )
 
-graph_tab = dcc.Graph(id="my-graph")
+graph_tab = dcc.Graph(id="my_graph",
+                figure= px.scatter(df,
+                    x="bodywt",
+                    y="sleep_total",
+                    color="vore",
+                    color_discrete_map= col_vore)
+            )
 
-app.layout= html.Div([
-    html.Div([html.H1(app.title, className="app-header--title")],
-        className= "app-header",
-    ),
-    html.Div([  
+
+
+app.layout = html.Div([
+
+    html.Div([
+
+        html.H1(app.title, className= "app-header--title")
+
+    ], className= "app-header"),
+
+    html.Div([
         dcc.Markdown(markdown_text),
-        html.Label(["Select types of feeding strategies:", 
-            dcc.Dropdown('my-dropdown', options= opt_vore, value= [opt_vore[0]['value']], multi=True)
+        html.Label(["Select types of feeding strategies:",
+            dcc.Dropdown('my-dropdown',
+                options= opt_vore,
+                value= [df_vore[0]],
+                multi= True
+            )
         ]),
-        html.Label(["Range of values for body weight:", 
-                 dcc.RangeSlider(id="range",
-                     max= 1,
-                     min= 0,
-                     step= 1/100,
-                     marks= slider_map(min_bodywt, max_bodywt),
-                     value= [0,1],
-                 )
-        ]),
-        html.Div(id='data', style={'display': 'none'}),
-        html.Div(id='dataRange', style={'display': 'none'}),
+        html.Div(id="log"),
+        dcc.RangeSlider(id="range",
+            min=min_bodywt,
+            max=max_bodywt,
+            step=step_bodywt,
+            marks={min_bodywt + i * step_bodywt: '{}'.format(round(min_bodywt + i * step_bodywt,2)) for i in range(10)},
+            value=[min_bodywt, max_bodywt]
+        ),
         dcc.Tabs(id="tabs", value='tab-t', children=[
             dcc.Tab(label='Table', value='tab-t'),
             dcc.Tab(label='Graph', value='tab-g'),
         ]),
-        html.Div(id='tabs-content')
-    ],
-    className= "app-body")
+
+        html.Div(id="tabs-content")
+
+    ], className = "app-body")
+
 ])
 
-@app.callback(Output('tabs-content', 'children'),
-              Input('tabs', 'value'))
-def render_content(tab):
-    if tab == 'tab-t':
-        return table_tab
-    elif tab == 'tab-g':
-        return graph_tab
+
+
 
 
 @app.callback(
      Output('my-table', 'data'),
-     Input('data', 'children'), 
-     State('tabs', 'value'))
-def update_table(data, tab):
+     Input('range', 'value'),
+     Input('my-dropdown', 'value'),
+     State('tabs','value'))
+def update_data(range, values, tab):
     if tab != 'tab-t':
         return None
-    dff = pd.read_json(data, orient='split')
-    return dff.to_dict("records")
+    filter = df['vore'].isin(values) & df['bodywt'].between(range[0], range[1])
+    return df[filter].to_dict("records")
 
 @app.callback(
-     Output('my-graph', 'figure'),
-     Input('data', 'children'), 
-     State('tabs', 'value'))
-def update_graph(data, tab):
+     Output('my_graph', 'figure'),
+     Input('range', 'value'),
+     Input('my-dropdown', 'value'),
+     State('tabs','value'))
+def update_figure(range, values, tab):
     if tab != 'tab-g':
         return None
-    dff = pd.read_json(data, orient='split')
-    return px.scatter(dff, x="bodywt", y="sleep_total", color="vore",
-    #color_discrete_sequence=px.colors.qualitative.G10
-    color_discrete_map=col_vore)
+    filter = df['vore'].isin(values) & df['bodywt'].between(range[0], range[1])
+    return px.scatter(df[filter], x="bodywt", y="sleep_total", color="vore", color_discrete_map= col_vore)
 
-@app.callback(Output('data', 'children'), 
-    Input('range', 'value'), 
-    State('my-dropdown', 'value'))
-def filter(range, values):
-     filter = df['vore'].isin(values) & df['bodywt'].between(min_bodywt * (max_bodywt/min_bodywt) ** range[0], min_bodywt * (max_bodywt/min_bodywt) ** range[1])
+@app.callback(
+     Output('log', 'children'),
+     Input('range', 'value'))
+def update_div(v):
+    return '{}'.format(v)
 
-     # more generally, this line would be
-     # json.dumps(cleaned_df)
-     return df[filter].to_json(date_format='iso', orient='split')
-
-
-@app.callback(Output('dataRange', 'children'), 
-    Input('my-dropdown', 'value'))
-def dataRange(values):
-    filter = df['vore'].isin(values) 
-    dff = df[filter]
-    min_bodywt = min(dff['bodywt'].dropna())
-    max_bodywt = max(dff['bodywt'].dropna())
-    return json.dumps({'min_bodywt': min_bodywt, 'max_bodywt': max_bodywt})
+@app.callback(
+     Output('tabs-content', 'children'),
+     Input('tabs', 'value'))
+def update_tabs(v):
+    if v == 'tab-g':
+        return graph_tab
+    return table_tab
 
 if __name__ == '__main__':
-    app.server.run(debug=True)
+     app.server.run(debug=True)
+    #app.server.run(debug=True, port=5858,  host='minivideos.uc3m.es')
